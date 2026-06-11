@@ -1,0 +1,10 @@
+prefix=/usr/local/mxe/usr/x86_64-w64-mingw32.static
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: harfbuzz-cairo
+Description: HarfBuzz cairo support
+Version: 14.2.1
+Requires: freetype2 >=  20.0.14, glib-2.0 >=  2.30.0, cairo >=  1.10.0, harfbuzz =  14.2.1
+Libs: -L${libdir} -lharfbuzz-cairo -lm -lharfbuzz
+Cflags: -I${includedir}/harfbuzz
