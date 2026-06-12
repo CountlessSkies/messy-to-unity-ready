@@ -16,7 +16,7 @@ Usage:
 
 try(destroyDialog glTFMaterialConverterRollout)catch()
 
-rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 height:480
+rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 height:520
 (
     -- UI Controls
     group "Target Mode" (
@@ -36,6 +36,7 @@ rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 he
     
     button btn_convert "Convert Materials" width:280 height:40 style:#flat
     button btn_clean_names "Clean Object Names" width:280 height:30 style:#flat
+    button btn_roughness_to_one "Set Empty Roughness to 1.0" width:280 height:30 style:#flat
     
     group "Log Output" (
         edittext edt_log "" readOnly:true height:120 labelOnTop:false
@@ -567,6 +568,55 @@ rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 he
         )
         
         addLog ("Cleaning complete! Renamed " + renameCount as string + " objects.")
+    )
+    
+    -- Handler to set roughness to 1.0 if no map is assigned
+    on btn_roughness_to_one pressed do (
+        logBuffer = ""
+        edt_log.text = ""
+        
+        if (glTFClass == undefined) do (
+            messageBox "glTFMaterial / glTF_Material class is not available." title:"Error"
+            return false
+        )
+        
+        local targetNodes = #()
+        if rad_target.state == 1 then (
+            targetNodes = selection as array
+            if targetNodes.count == 0 do (
+                messageBox "Please select at least one object." title:"No Selection"
+                return false
+            )
+        ) else (
+            targetNodes = objects as array
+        )
+        
+        local uniqueGltfMats = #()
+        for n in targetNodes do (
+            if n.material != undefined do (
+                local gltfMats = getClassInstances glTFClass target:n.material
+                for m in gltfMats do (
+                    appendIfUnique uniqueGltfMats m
+                )
+            )
+        )
+        
+        local adjustCount = 0
+        addLog "Checking glTF materials for empty roughness map..."
+        
+        undo "Set Empty Roughness to 1.0" on (
+            for m in uniqueGltfMats do (
+                if m.roughnessMap == undefined then (
+                    if m.roughness != 1.0 do (
+                        m.roughness = 1.0
+                        adjustCount += 1
+                        addLog ("Set Roughness = 1.0 for: " + m.name)
+                    )
+                )
+            )
+        )
+        
+        addLog ("Complete! Adjusted roughness for " + adjustCount as string + " materials.")
     )
 )
 
