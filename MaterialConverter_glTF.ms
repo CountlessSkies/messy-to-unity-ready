@@ -35,6 +35,7 @@ rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 he
     )
     
     button btn_convert "Convert Materials" width:280 height:40 style:#flat
+    button btn_clean_names "Clean Object Names" width:280 height:30 style:#flat
     
     group "Log Output" (
         edittext edt_log "" readOnly:true height:120 labelOnTop:false
@@ -51,6 +52,47 @@ rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 he
     fn addLog msg = (
         logBuffer += (msg as string) + "\n"
         edt_log.text = logBuffer
+    )
+    
+    -- Helper function to clean Vietnamese accents and replace spaces with underscores
+    fn cleanObjectName objName = (
+        if objName == undefined do return ""
+        local tempName = objName as string
+        
+        local mapping = #(
+            #("á","a"), #("à","a"), #("ả","a"), #("ã","a"), #("ạ","a"),
+            #("â","a"), #("ấ","a"), #("ầ","a"), #("ẩ","a"), #("ẫ","a"), #("ậ","a"),
+            #("ă","a"), #("ắ","a"), #("ằ","a"), #("ẳ","a"), #("ẵ","a"), #("ặ","a"),
+            #("Á","A"), #("À","A"), #("Ả","A"), #("Ã","A"), #("Ạ","A"),
+            #("Â","A"), #("Ấ","A"), #("Ầ","A"), #("Ẩ","A"), #("Ẫ","A"), #("Ậ","A"),
+            #("Ă","A"), #("Ắ","A"), #("Ằ","A"), #("Ẳ","A"), #("Ẵ","A"), #("Ặ","A"),
+            #("é","e"), #("è","e"), #("ẻ","e"), #("ẽ","e"), #("ẹ","e"),
+            #("ê","e"), #("ế","e"), #("ề","e"), #("ể","e"), #("ễ","e"), #("ệ","e"),
+            #("É","E"), #("È","E"), #("Ẻ","E"), #("Ẽ","E"), #("Ẹ","E"),
+            #("Ê","E"), #("Ế","E"), #("Ề","E"), #("Ể","E"), #("Ễ","E"), #("Ệ","E"),
+            #("í","i"), #("ì","i"), #("ỉ","i"), #("ĩ","i"), #("ị","i"),
+            #("Í","I"), #("Ì","I"), #("Ỉ","I"), #("Ĩ","I"), #("Ị","I"),
+            #("ó","o"), #("ò","o"), #("ỏ","o"), #("õ","o"), #("ọ","o"),
+            #("ô","o"), #("ố","o"), #("ồ","o"), #("ổ","o"), #("ỗ","o"), #("ộ","o"),
+            #("ơ","o"), #("ớ","o"), #("ờ","o"), #("ở","o"), #("ỡ","o"), #("ợ","o"),
+            #("Ó","O"), #("Ò","O"), #("Ỏ","O"), #("Õ","O"), #("Ọ","O"),
+            #("Ô","O"), #("Ố","O"), #("Ồ","O"), #("Ổ","O"), #("Ỗ","O"), #("Ộ","O"),
+            #("Ơ","O"), #("Ớ","O"), #("Ờ","O"), #("Ở","O"), #("Ỡ","O"), #("Ợ","O"),
+            #("ú","u"), #("ù","u"), #("ủ","u"), #("ũ","u"), #("ụ","u"),
+            #("ư","u"), #("ứ","u"), #("ừ","u"), #("ử","u"), #("ữ","u"), #("ự","u"),
+            #("Ú","U"), #("Ù","U"), #("Ủ","U"), #("Ũ","U"), #("Ụ","U"),
+            #("Ư","U"), #("Ứ","U"), #("Ừ","U"), #("Ử","U"), #("Ữ","U"), #("Ự","U"),
+            #("ý","y"), #("ỳ","y"), #("ỷ","y"), #("ỹ","y"), #("ỵ","y"),
+            #("Ý","Y"), #("Ỳ","Y"), #("Ỷ","Y"), #("Ỹ","Y"), #("Ỵ","Y"),
+            #("đ","d"), #("Đ","D")
+        )
+        
+        for pair in mapping do (
+            tempName = substituteString tempName pair[1] pair[2]
+        )
+        
+        tempName = substituteString tempName " " "_"
+        return tempName
     )
     
     -- Helper function to convert all VRayBitmap/VRayHDRI inside a material to standard Bitmaptexture
@@ -490,6 +532,41 @@ rollout glTFMaterialConverterRollout "glTF Material Converter v1.0" width:320 he
         
         -- Reopen Material Editor if it was open originally
         if meWasOpen do MatEditor.Open()
+    )
+    
+    -- Handler for Clean Object Names
+    on btn_clean_names pressed do (
+        logBuffer = ""
+        edt_log.text = ""
+        
+        local targetNodes = #()
+        if rad_target.state == 1 then (
+            targetNodes = selection as array
+            if targetNodes.count == 0 do (
+                messageBox "Please select at least one object." title:"No Selection"
+                return false
+            )
+        ) else (
+            targetNodes = objects as array
+        )
+        
+        local renameCount = 0
+        addLog "Starting cleaning object names..."
+        
+        undo "Clean Object Names" on (
+            for n in targetNodes do (
+                local oldName = n.name
+                local newName = cleanObjectName oldName
+                if oldName != newName do (
+                    n.name = newName
+                    renameCount += 1
+                    addLog ("Renamed: " + oldName + " -> " + newName)
+                )
+                windows.processPostedMessages()
+            )
+        )
+        
+        addLog ("Cleaning complete! Renamed " + renameCount as string + " objects.")
     )
 )
 
